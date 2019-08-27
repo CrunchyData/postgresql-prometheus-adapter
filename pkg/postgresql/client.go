@@ -36,10 +36,12 @@ func ParseFlags(cfg *Config) *Config {
 
 // Client sends Prometheus samples to PostgreSQL
 type Client struct {
+	DBC             *pgx.Conn
 	DBW             *pgx.Conn
 	DBR             *pgx.Conn
 	cfg             *Config
 	KeepRunning     bool
+  Running       bool
 	Interval        int
 	Rows            int
   Mutex           sync.Mutex
@@ -48,25 +50,27 @@ type Client struct {
   valueRowsTwo    [][]interface{}
   labelRows       [][]interface{}
   vMetricIDMap    tMetricIDMap
+  lastPartitionTS time.Time
 }
 
 // Run starts the client and listens for a shutdown call.
 func (c *Client) Run() {
-  period := c.cfg.CommitSecs
+  period := c.cfg.CommitSecs * 1000
 	log.Info("bgwriter","Started")
-
+  c.Running = true
 	// Loop that runs forever
 	for c.KeepRunning {
-		if period <= 0 {
+		if (period <= 0 && (c.WhichOne == 1 && len(c.valueRowsOne) > 0 ) || (c.WhichOne == 2 && len(c.valueRowsTwo) > 0 ) ) || (c.WhichOne == 1 && len(c.valueRowsOne) > c.Rows ) || (c.WhichOne == 2 && len(c.valueRowsTwo) > c.Rows ) {
 		  c.Action()
-      period = c.cfg.CommitSecs
+      period = c.cfg.CommitSecs * 1000
     }else {
-      time.Sleep( 10 * time.Second)
-      period -= 10
+      time.Sleep( 100 * time.Millisecond)
+      period -= 100
     }
 	}
   c.Action()
 	log.Info("bgwriter","Shutdown")
+  c.Running = false
 }
 
 // Shutdown is a graceful shutdown mechanism 
@@ -81,44 +85,42 @@ func (c *Client) Shutdown() {
 func (c *Client) Action() {
   var copyCount, lblCount, rowCount int64
   var err error
-  if (c.WhichOne == 1 && len(c.valueRowsOne) > c.Rows ) || (c.WhichOne == 2 && len(c.valueRowsTwo) > c.Rows ) || !c.KeepRunning {
-    c.Mutex.Lock()
-    if c.WhichOne == 1 {
-      c.WhichOne = 2
-    } else {
-      c.WhichOne = 1
-    }
-	  begin := time.Now()
-    lblCount = int64(len(c.labelRows))
-    if lblCount > 0 {
-      copyCount, err := c.DBW.CopyFrom(context.Background(), pgx.Identifier{"metric_labels"}, []string{"metric_id", "metric_name", "metric_name_label", "metric_labels"}, pgx.CopyFromRows(c.labelRows))
-      c.labelRows = nil
-	    if err != nil {
-		    log.Error("msg", "COPY failed for metric_labels", "err", err)
-	    }
-	    if copyCount != lblCount {
-		    log.Error("msg", "All rows not copied metric_labels", "err", err)
-	    }
-    }
-    if c.WhichOne == 1 {
-      copyCount, err = c.DBW.CopyFrom(context.Background(), pgx.Identifier{"metric_values"}, []string{"metric_id", "metric_time", "metric_value"}, pgx.CopyFromRows(c.valueRowsTwo))
-      rowCount = int64(len(c.valueRowsTwo))
-      c.valueRowsTwo = nil
-    } else {
-      copyCount, err = c.DBW.CopyFrom(context.Background(), pgx.Identifier{"metric_values"}, []string{"metric_id", "metric_time", "metric_value"}, pgx.CopyFromRows(c.valueRowsOne))
-      rowCount = int64(len(c.valueRowsOne))
-      c.valueRowsOne = nil
-    }
-    c.Mutex.Unlock()
-    if err != nil {
-      log.Error("msg", "COPY failed for metric_values", "err", err)
-    }
-    if copyCount != rowCount {
-      log.Error("msg", "All rows not copied metric_values", "err", err)
-    }
-    duration := time.Since(begin).Seconds()
-    log.Info("metric", fmt.Sprintf("BGWriter: Processed samples count,%d, duration,%v", rowCount + lblCount, duration) )
+  c.Mutex.Lock()
+  if c.WhichOne == 1 {
+    c.WhichOne = 2
+  } else {
+    c.WhichOne = 1
   }
+  c.Mutex.Unlock()
+  begin := time.Now()
+  lblCount = int64(len(c.labelRows))
+  if lblCount > 0 {
+    copyCount, err := c.DBW.CopyFrom(context.Background(), pgx.Identifier{"metric_labels"}, []string{"metric_id", "metric_name", "metric_name_label", "metric_labels"}, pgx.CopyFromRows(c.labelRows))
+    c.labelRows = nil
+    if err != nil {
+      log.Error("msg", "COPY failed for metric_labels", "err", err)
+    }
+    if copyCount != lblCount {
+      log.Error("msg", "All rows not copied metric_labels", "err", err)
+    }
+  }
+  if c.WhichOne == 1 {
+    copyCount, err = c.DBW.CopyFrom(context.Background(), pgx.Identifier{"metric_values"}, []string{"metric_id", "metric_time", "metric_value"}, pgx.CopyFromRows(c.valueRowsTwo))
+    rowCount = int64(len(c.valueRowsTwo))
+    c.valueRowsTwo = nil
+  } else {
+    copyCount, err = c.DBW.CopyFrom(context.Background(), pgx.Identifier{"metric_values"}, []string{"metric_id", "metric_time", "metric_value"}, pgx.CopyFromRows(c.valueRowsOne))
+    rowCount = int64(len(c.valueRowsOne))
+    c.valueRowsOne = nil
+  }
+  if err != nil {
+    log.Error("msg", "COPY failed for metric_values", "err", err)
+  }
+  if copyCount != rowCount {
+    log.Error("msg", "All rows not copied metric_values", "err", err)
+  }
+  duration := time.Since(begin).Seconds()
+  log.Info("metric", fmt.Sprintf("BGWriter: Processed samples count,%d, duration,%v", rowCount + lblCount, duration) )
 }
 
 
@@ -138,9 +140,16 @@ func NewClient(cfg *Config) *Client {
     os.Exit(1)
   }
 
+	conn3, err3 := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+  if err3 != nil {
+    log.Error("err", err3)
+    os.Exit(1)
+  }
+
 	client := &Client{
-		DBW:  conn1,
-		DBR:  conn2,
+		DBC:  conn1,
+		DBW:  conn2,
+		DBR:  conn3,
 		cfg: cfg,
 		KeepRunning:    true,
     WhichOne:       1,
@@ -156,6 +165,14 @@ func NewClient(cfg *Config) *Client {
     os.Exit(1)
   }
 
+  client.lastPartitionTS = time.Now()
+  err = client.setupPgPartitions()
+
+  if err != nil {
+    log.Error("err", err)
+    os.Exit(1)
+  }
+
 	return client
 }
 
@@ -164,68 +181,33 @@ func (c *Client) setupPgPrometheus() error {
   defer c.Mutex.Unlock()
   log.Info("msg", "creating tables")
 
-	_, err := c.DBW.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS metric_labels ( metric_id BIGINT PRIMARY KEY, metric_name TEXT NOT NULL, metric_name_label TEXT NOT NULL, metric_labels jsonb, UNIQUE(metric_name, metric_labels) )")
+	_, err := c.DBC.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS metric_labels ( metric_id BIGINT PRIMARY KEY, metric_name TEXT NOT NULL, metric_name_label TEXT NOT NULL, metric_labels jsonb, UNIQUE(metric_name, metric_labels) )")
 	if err != nil {
 		return err
 	}
 
-	_, err = c.DBW.Exec(context.Background(), "CREATE INDEX IF NOT EXISTS metric_labels_labels_idx ON metric_labels USING GIN (metric_labels)")
+	_, err = c.DBC.Exec(context.Background(), "CREATE INDEX IF NOT EXISTS metric_labels_labels_idx ON metric_labels USING GIN (metric_labels)")
   if err != nil {
 		return err
 	}
 
-	_, err = c.DBW.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS metric_values (metric_id BIGINT, metric_time TIMESTAMPTZ, metric_value FLOAT8 ) PARTITION BY RANGE (metric_time)")
+	_, err = c.DBC.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS metric_values (metric_id BIGINT, metric_time TIMESTAMPTZ, metric_value FLOAT8 ) PARTITION BY RANGE (metric_time)")
   if err != nil {
 		return err
 	}
 
-	_, err = c.DBW.Exec(context.Background(), "CREATE INDEX IF NOT EXISTS metric_values_id_time_idx on metric_values USING btree (metric_id, metric_time DESC)")
+	_, err = c.DBC.Exec(context.Background(), "CREATE INDEX IF NOT EXISTS metric_values_id_time_idx on metric_values USING btree (metric_id, metric_time DESC)")
   if err != nil {
 		return err
 	}
 
-	_, err = c.DBW.Exec(context.Background(), "CREATE INDEX IF NOT EXISTS metric_values_time_idx  on metric_values USING btree (metric_time DESC)")
+	_, err = c.DBC.Exec(context.Background(), "CREATE INDEX IF NOT EXISTS metric_values_time_idx  on metric_values USING btree (metric_time DESC)")
   if err != nil {
 		return err
 	}
-
-
-  sDate := time.Now()
-  eDate := sDate
-  for i:=0; i<31;  i++ {
-    if c.cfg.partitionScheme == "daily" {
-	    _, err = c.DBW.Exec(context.Background(), fmt.Sprintf("CREATE TABLE IF NOT EXISTS metric_values_%s PARTITION OF metric_values FOR VALUES FROM ('%s 00:00:00') TO ('%s 00:00:00')", sDate.AddDate(0, 0, i).Format("20060102"), sDate.AddDate(0, 0, i).Format("2006-01-02"), eDate.AddDate(0, 0, 1+i).Format("2006-01-02") ) )
-      if err != nil {
-		    return err
-      }
-    } else if c.cfg.partitionScheme == "hourly" {
-	    _, err = c.DBW.Exec(context.Background(), fmt.Sprintf("CREATE TABLE IF NOT EXISTS metric_values_%s PARTITION OF metric_values FOR VALUES FROM ('%s 00:00:00') TO ('%s 00:00:00') PARTITION BY RANGE (metric_time)", sDate.AddDate(0, 0, i).Format("20060102"), sDate.AddDate(0, 0, i).Format("2006-01-02"), eDate.AddDate(0, 0, 1+i).Format("2006-01-02") ) )
-      if err != nil {
-		    return err
-      }
-      var h int
-      for h=0; h<23; h++ {
-	      _, err = c.DBW.Exec(context.Background(), fmt.Sprintf("CREATE TABLE IF NOT EXISTS metric_values_%s_%02d PARTITION OF metric_values_%s FOR VALUES FROM ('%s %02d:00:00') TO ('%s %02d:00:00')", sDate.AddDate(0, 0, i).Format("20060102"), h, sDate.AddDate(0, 0, i).Format("20060102"), sDate.AddDate(0, 0, i).Format("2006-01-02"), h, eDate.AddDate(0, 0, i).Format("2006-01-02"), h+1 ) )
-        if err != nil {
-		      return err
-        }
-      }
-	    _, err = c.DBW.Exec(context.Background(), fmt.Sprintf("CREATE TABLE IF NOT EXISTS metric_values_%s_%02d PARTITION OF metric_values_%s FOR VALUES FROM ('%s %02d:00:00') TO ('%s 00:00:00')", sDate.AddDate(0, 0, i).Format("20060102"), h, sDate.AddDate(0, 0, i).Format("20060102"), sDate.AddDate(0, 0, i).Format("2006-01-02"), h, eDate.AddDate(0, 0, i+1).Format("2006-01-02") ) )
-      if err != nil {
-		    return err
-      }
-    }
-  }
-
-  /*for i:=0; i<5;  i++ {
-	  _, err = c.DBW.Exec(context.Background(), fmt.Sprintf("CREATE TABLE IF NOT EXISTS metric_values_%s PARTITION OF metric_values FOR VALUES FROM ('%s 00:00:00') TO ('%s 00:00:00')", sDate.AddDate(0, 0, i).Format("20060102"), sDate.AddDate(0, 0, i).Format("2006-01-02"), eDate.AddDate(0, 0, 1+i).Format("2006-01-02")  ))
-    if err != nil {
-		  return err
-    }
-  }*/
 
   c.vMetricIDMap = make(tMetricIDMap)
-	rows, err1 := c.DBW.Query(context.Background(), "SELECT metric_name_label, metric_id from metric_labels" )
+	rows, err1 := c.DBC.Query(context.Background(), "SELECT metric_name_label, metric_id from metric_labels" )
 
 	if err1 != nil {
     rows.Close()
@@ -250,7 +232,32 @@ func (c *Client) setupPgPrometheus() error {
   }
   log.Info("msg",fmt.Sprintf("%d Rows Loaded in map: ", len(c.vMetricIDMap ) ) )
   rows.Close()
+	return nil
+}
 
+func (c *Client) setupPgPartitions() error {
+  c.Mutex.Lock()
+  defer c.Mutex.Unlock()
+  sDate := c.lastPartitionTS
+  eDate := sDate
+  if c.cfg.partitionScheme == "daily" {
+    log.Info("msg","Creating partition, daily")
+    _, err := c.DBC.Exec(context.Background(), fmt.Sprintf("CREATE TABLE IF NOT EXISTS metric_values_%s PARTITION OF metric_values FOR VALUES FROM ('%s 00:00:00') TO ('%s 00:00:00')", sDate.Format("20060102"), sDate.Format("2006-01-02"), eDate.AddDate(0, 0, 1).Format("2006-01-02") ) )
+    if err != nil {
+      return err
+    }
+  } else if c.cfg.partitionScheme == "hourly" {
+    sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS metric_values_%s PARTITION OF metric_values FOR VALUES FROM ('%s 00:00:00') TO ('%s 00:00:00') PARTITION BY RANGE (metric_time);", sDate.Format("20060102"), sDate.Format("2006-01-02"), eDate.AddDate(0, 0, 1).Format("2006-01-02") )
+    var h int
+    for h=0; h<23; h++ {
+      sql = fmt.Sprintf("%s CREATE TABLE IF NOT EXISTS metric_values_%s_%02d PARTITION OF metric_values_%s FOR VALUES FROM ('%s %02d:00:00') TO ('%s %02d:00:00');", sql, sDate.Format("20060102"), h, sDate.Format("20060102"), sDate.Format("2006-01-02"), h, eDate.Format("2006-01-02"), h+1 )
+    }
+    log.Info("msg","Creating partition, hourly")
+    _, err := c.DBC.Exec(context.Background(), fmt.Sprintf("%s CREATE TABLE IF NOT EXISTS metric_values_%s_%02d PARTITION OF metric_values_%s FOR VALUES FROM ('%s %02d:00:00') TO ('%s 00:00:00');", sql, sDate.Format("20060102"), h, sDate.Format("20060102"), sDate.Format("2006-01-02"), h, eDate.AddDate(0, 0, 1).Format("2006-01-02") ) )
+    if err != nil {
+      return err
+    }
+  }
 	return nil
 }
 
@@ -288,8 +295,14 @@ func (c *Client) Write(samples model.Samples) error {
 
   for _, sample := range samples {
     sMetric:=metricString(sample.Metric)
+    ts := time.Unix(sample.Timestamp.Unix(), 0)
 		milliseconds := sample.Timestamp.UnixNano() / 1000000
-
+    if ts.Year() != c.lastPartitionTS.Year() ||
+       ts.Month() != c.lastPartitionTS.Month() ||
+       ts.Day() != c.lastPartitionTS.Day() {
+      c.lastPartitionTS = ts
+	    _ = c.setupPgPartitions()
+     }
     id, ok := c.vMetricIDMap[sMetric]
 
     if !ok {

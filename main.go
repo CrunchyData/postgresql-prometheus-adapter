@@ -130,6 +130,11 @@ func main() {
       for sig := range c {
         fmt.Printf("Signal: %v\n", sig)
         worker.Shutdown()
+		    for worker.Running {
+          time.Sleep( 1 * time.Second )
+          fmt.Println("Waiting for shutdown ...")
+        }
+        os.Exit(0)
       }
   }()
 

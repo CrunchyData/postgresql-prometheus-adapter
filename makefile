@@ -20,8 +20,8 @@ container: $(TARGET) Dockerfile
 	podman tag $(ORGANIZATION)/$(TARGET):latest $(ORGANIZATION)/$(TARGET):$(VERSION)
 
 container-save: container
-	rm -f $(TARGET).tar
-	podman save --output=$(TARGET)-$(TARGET).tar $(ORGANIZATION)/$(TARGET):$(VERSION)
+	rm -f $(TARGET)-$(VERSION).tar
+	podman save --output=$(TARGET)-$(VERSION).tar $(ORGANIZATION)/$(TARGET):$(VERSION)
 
 clean:
 	rm -f *~ $(TARGET)
