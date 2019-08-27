@@ -1,7 +1,5 @@
 VERSION=1.0
-OS:=$(shell uname -s | awk '{ print tolower($$1) }')
 ORGANIZATION=crunchydata
-GOPATH=$(shell pwd)
 
 SOURCES:=$(shell find . -name '*.go'  | grep -v './vendor')
 
