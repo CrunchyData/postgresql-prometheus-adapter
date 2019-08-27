@@ -32,9 +32,9 @@ import (
   "sync/atomic"
 	"time"
 
-	"pkg/log"
-	"pkg/postgresql"
-	"pkg/util"
+	"github.com/crunchydata/postgresql-prometheus-adapter/pkg/log"
+	"github.com/crunchydata/postgresql-prometheus-adapter/pkg/postgresql"
+	"github.com/crunchydata/postgresql-prometheus-adapter/pkg/util"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"

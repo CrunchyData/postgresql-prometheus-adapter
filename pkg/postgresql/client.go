@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
   "sync"
-	"pkg/log"
+	"github.com/crunchydata/postgresql-prometheus-adapter/pkg/log"
   "context"
 	"github.com/jackc/pgx/v4"
 	"github.com/prometheus/common/model"
