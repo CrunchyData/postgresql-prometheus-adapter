@@ -192,7 +192,7 @@ func (c *Client) setupPgPrometheus() error {
 
   sDate := time.Now()
   eDate := sDate
-  for i:=0; i<5;  i++ {
+  for i:=0; i<31;  i++ {
     if c.cfg.partitionScheme == "daily" {
 	    _, err = c.DBW.Exec(context.Background(), fmt.Sprintf("CREATE TABLE IF NOT EXISTS metric_values_%s PARTITION OF metric_values FOR VALUES FROM ('%s 00:00:00') TO ('%s 00:00:00')", sDate.AddDate(0, 0, i).Format("20060102"), sDate.AddDate(0, 0, i).Format("2006-01-02"), eDate.AddDate(0, 0, 1+i).Format("2006-01-02") ) )
       if err != nil {
