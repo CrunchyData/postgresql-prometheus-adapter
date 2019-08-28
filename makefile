@@ -1,4 +1,4 @@
-VERSION=1.0
+VERSION=1.1
 ORGANIZATION=crunchydata
 
 SOURCES:=$(shell find . -name '*.go'  | grep -v './vendor')
