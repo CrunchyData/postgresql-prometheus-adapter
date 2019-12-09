@@ -105,7 +105,7 @@ var (
 	lastRequestUnixNano = time.Now().UnixNano()
 )
 
-var worker *postgresql.Client
+var worker [50]postgresql.PGWriter
 
 func init() {
 	prometheus.MustRegister(receivedSamples)
@@ -120,6 +120,17 @@ func main() {
 	cfg := parseFlags()
 	log.Init(cfg.logLevel)
 	log.Info("config", fmt.Sprintf("%+v", cfg))
+	log.Info("pgPrometheusConfig", fmt.Sprintf("%+v", cfg.pgPrometheusConfig))
+	log.Info("pgPrometheusConfig.CommitSecs", fmt.Sprintf("%+v", cfg.pgPrometheusConfig.PGWriters))
+
+  if ( cfg.pgPrometheusConfig.PGWriters < 0 ) {
+    //flag.Set("cfg.pgPrometheusConfig.PGWriters",1)
+    cfg.pgPrometheusConfig.PGWriters=1
+  }
+  if ( cfg.pgPrometheusConfig.PGWriters > 50 ) {
+    //flag.Set("cfg.pgPrometheusConfig.PGWriters",50)
+    cfg.pgPrometheusConfig.PGWriters=50
+  }
 
 	http.Handle(cfg.telemetryPath, promhttp.Handler())
 	writer, reader := buildClients(cfg)
@@ -129,12 +140,23 @@ func main() {
   go func(){
       for sig := range c {
         fmt.Printf("Signal: %v\n", sig)
-        worker.Shutdown()
+        for t := 0; t < cfg.pgPrometheusConfig.PGWriters; t++ {
+          fmt.Printf("Calling shutdown %d\n", t)
+          worker[t].Shutdown()
+        }
+        for t := 0; t < cfg.pgPrometheusConfig.PGWriters; t++ {
+		      for worker[t].Running {
+            time.Sleep( 1 * time.Second )
+            fmt.Printf("Waiting for shutdown %d...\n", t)
+          }
+        }
+        os.Exit(0)
       }
   }()
-
-  go worker.Run()
-  defer worker.Shutdown()
+  for t := 0; t < cfg.pgPrometheusConfig.PGWriters; t++ {
+    go worker[t].Run(t, cfg.pgPrometheusConfig.CommitSecs, cfg.pgPrometheusConfig.CommitRows, cfg.pgPrometheusConfig.PartitionScheme)
+    defer worker[t].Shutdown()
+  }
 
   log.Info("msg", "Starting HTTP Listerner")
 
@@ -147,6 +169,7 @@ func main() {
 
   err := http.ListenAndServe(cfg.listenAddr, nil)
 
+  log.Info("msg", "Started HTTP Listerner")
 
 	if err != nil {
 		log.Error("msg", "Listen failure", "err", err)
@@ -184,8 +207,6 @@ type reader interface {
 
 func buildClients(cfg *config) (writer, reader) {
 	pgClient := postgresql.NewClient(&cfg.pgPrometheusConfig)
-
-  worker = pgClient
 
 	return pgClient, pgClient
 }
