@@ -1,6 +1,7 @@
 package postgresql
 
 import (
+  "runtime"
   "encoding/json"
   "flag"
   "fmt"
@@ -104,8 +105,9 @@ func (c *PGWriter) Run(tid int, commitSecs int, commitRows int, partitionScheme 
         vMetricIDMapMutex.Unlock()
         c.valueRows = append(c.valueRows, []interface{}{int64(id), toTimestamp(milliseconds), float64( sample.Value) } )
       }
-
+      samples = nil
       log.Info(fmt.Sprintf("bgwriter%d",c.id), fmt.Sprintf("Parsed %d rows", len(c.valueRows) ) )
+      runtime.GC()
     }
     if ( period <= 0 && len(c.valueRows) > 0 ) || (len(c.valueRows) > commitRows ) {
       c.Action()

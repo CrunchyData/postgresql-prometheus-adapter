@@ -143,6 +143,8 @@ func main() {
         for t := 0; t < cfg.pgPrometheusConfig.PGWriters; t++ {
           fmt.Printf("Calling shutdown %d\n", t)
           worker[t].Shutdown()
+        }
+        for t := 0; t < cfg.pgPrometheusConfig.PGWriters; t++ {
 		      for worker[t].Running {
             time.Sleep( 1 * time.Second )
             fmt.Printf("Waiting for shutdown %d...\n", t)
