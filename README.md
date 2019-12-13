@@ -72,15 +72,15 @@ remote_read:
     - url: "http://<ip address>:9201/read"
  ```
     
-## Sponsors
+## Maintainers
 
-[Crunchy Data](https://www.crunchydata.com/) is pleased to support the development of a number [open-source projects](https://github.com/CrunchyData/) to help promote support the PostgreSQL community and software ecosystem.
+The PostgreSQL Prometheus Adapter is maintained by the team at [Crunchy Data](https://www.crunchydata.com/). 
 
-## Legal Notices
+## Contributing to the Project
 
-Copyright © 2019 Crunchy Data Solutions, Inc.
+Want to contribute to the PostgreSQL Operator project? Great! Please use GitHub to submit an issue for the PostgreSQL Prometheus Adapter project.  If you would like to work the issue, please add that information in the issue so that we can confirm we are not already working no need to duplicate efforts.
 
-CRUNCHY DATA SOLUTIONS, INC. PROVIDES THIS GUIDE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF NON INFRINGEMENT, MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+## License
 
-Crunchy, Crunchy Data Solutions, Inc. and the Crunchy Hippo Logo are trademarks of Crunchy Data Solutions, Inc.
+The PostgreSQL Prometheus Adapter is available under the Apache 2.0 license. See [LICENSE] (https://github.com/CrunchyData/postgresql-prometheus-adapter/blob/master/LICENSE) for details. 
 
