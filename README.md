@@ -25,7 +25,7 @@ PostgreSQL Prometheus Adapter supports:
 make
 ```
 
-### Make a cotnainer (optional)
+### Make a container (optional)
 
 ```shell
 make container
