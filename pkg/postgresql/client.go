@@ -285,7 +285,7 @@ func (c *PGWriter) setupPgPrometheus() error {
 	for rows.Next() {
 		var (
 			metricNameLabel string
-			metricID         int64
+			metricID        int64
 		)
 		err := rows.Scan(&metricNameLabel, &metricID)
 

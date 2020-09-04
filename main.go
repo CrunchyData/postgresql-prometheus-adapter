@@ -68,8 +68,8 @@ type config struct {
 const (
 	tickInterval      = time.Second
 	promLivenessCheck = time.Second
-	maxBgWriter      = 10
-	maxBgParser      = 20
+	maxBgWriter       = 10
+	maxBgParser       = 20
 )
 
 var (
