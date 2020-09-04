@@ -2,13 +2,13 @@
 
 Remote storage adapter enabling Prometheus to use PostgreSQL as a long-term store for time-series metrics. Code is based on [Prometheus - Remote storage adapter](https://github.com/prometheus/prometheus/tree/master/documentation/examples/remote_storage/remote_storage_adapter).
 
-The PostgreSQL Prometheus Adapter is designed to utilize native partitioning enhancements available in recent versions of core Postgres to efficiently store Prometheus time series data in a PostgreSQL database, and is not dependent on external PostgreSQL extensions.
+The PostgreSQL Prometheus Adapter is designed to utilize native partitioning enhancements available in recent versions of core PostgreSQL to efficiently store Prometheus time series data in a PostgreSQL database, and is not dependent on external PostgreSQL extensions.
 
 The design is based on partitioning and threads. Incoming data is processed by one or more threads and one or more writer threads will store data in PostgreSQL daily or hourly partitions. Partitions will be auto-created by the adapter based on the timestamp of incoming data.
 
 The PostgreSQL Prometheus Adapter accepts Prometheus remote read/write requests, and sends them to PostgreSQL.
 
-Additional information regarding the adapter and getting started is provided below and available in this [blog post introducing the Postgres Prometheus Adapter](https://info.crunchydata.com/blog/using-postgres-to-back-prometheus-for-your-postgresql-monitoring-1).
+Additional information regarding the adapter and getting started is provided below and available in this [blog post introducing the PostgreSQL Prometheus Adapter](https://info.crunchydata.com/blog/using-postgres-to-back-prometheus-for-your-postgresql-monitoring-1).
 
 ## PostgreSQL Version Support
 
