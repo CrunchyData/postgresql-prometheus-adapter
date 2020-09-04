@@ -68,8 +68,8 @@ type config struct {
 const (
 	tickInterval      = time.Second
 	promLivenessCheck = time.Second
-	max_bgwriter      = 10
-	max_bgparser      = 20
+	maxBgWriter      = 10
+	maxBgParser      = 20
 )
 
 var (
@@ -111,7 +111,7 @@ var (
 	)
 )
 
-var worker [max_bgwriter]postgresql.PGWriter
+var worker [maxBgWriter]postgresql.PGWriter
 
 func init() {
 	prometheus.MustRegister(receivedSamples)
@@ -130,15 +130,15 @@ func main() {
 	if cfg.pgPrometheusConfig.PGWriters < 0 {
 		cfg.pgPrometheusConfig.PGWriters = 1
 	}
-	if cfg.pgPrometheusConfig.PGWriters > max_bgwriter {
-		cfg.pgPrometheusConfig.PGWriters = max_bgwriter
+	if cfg.pgPrometheusConfig.PGWriters > maxBgWriter {
+		cfg.pgPrometheusConfig.PGWriters = maxBgWriter
 	}
 
 	if cfg.pgPrometheusConfig.PGParsers < 0 {
 		cfg.pgPrometheusConfig.PGParsers = 1
 	}
-	if cfg.pgPrometheusConfig.PGParsers > max_bgparser {
-		cfg.pgPrometheusConfig.PGParsers = max_bgparser
+	if cfg.pgPrometheusConfig.PGParsers > maxBgParser {
+		cfg.pgPrometheusConfig.PGParsers = maxBgParser
 	}
 
 	http.Handle(cfg.telemetryPath, promhttp.Handler())

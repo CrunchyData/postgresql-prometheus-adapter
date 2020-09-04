@@ -32,11 +32,17 @@ type Config struct {
 }
 
 var promSamples = list.New()
+
+/*
+
+QueueMutex is used thread safe operations on promSamples list object.
+
+*/
 var QueueMutex sync.Mutex
 var vMetricIDMapMutex sync.Mutex
 var vMetricIDMap tMetricIDMap
 
-// Threaded writer
+//PGWriter - Threaded writer
 type PGWriter struct {
 	DB          *pgx.Conn
 	id          int
@@ -50,6 +56,7 @@ type PGWriter struct {
 	logger        log.Logger
 }
 
+//PGParser - Threaded parser
 type PGParser struct {
 	id          int
 	KeepRunning bool
@@ -96,7 +103,7 @@ func (p *PGParser) RunPGParser(tid int, partitionScheme string, c *PGWriter) {
 				vMetricIDMapMutex.Unlock()
 				p.valueRows = append(p.valueRows, []interface{}{int64(id), toTimestamp(milliseconds), float64(sample.Value)})
 			}
-			samples = nil
+			// samples = nil
 			// level.Info(c.logger).Log(fmt.Sprintf("bgparser%d",p.id), fmt.Sprintf("Parsed %d rows", len(p.valueRows) ) )
 			vMetricIDMapMutex.Lock()
 			c.valueRows = append(c.valueRows, p.valueRows...)
@@ -154,7 +161,7 @@ func (c *PGWriter) RunPGWriter(l log.Logger, tid int, commitSecs int, commitRows
 	c.Running = false
 }
 
-// Shutdown is a graceful shutdown mechanism
+//PGWriterShutdown - Set shutdown flag for graceful shutdown
 func (c *PGWriter) PGWriterShutdown() {
 	c.KeepRunning = false
 }
@@ -190,12 +197,14 @@ func (c *PGWriter) PGWriterSave() {
 	level.Info(c.logger).Log("metric", fmt.Sprintf("BGWriter%d: Processed samples count,%d, duration,%v", c.id, rowCount+lblCount, duration))
 }
 
+//Push - Push element at then end of list
 func Push(samples *model.Samples) {
 	QueueMutex.Lock()
 	promSamples.PushBack(samples)
 	QueueMutex.Unlock()
 }
 
+//Pop - Pop first element from list
 func Pop() *model.Samples {
 	QueueMutex.Lock()
 	defer QueueMutex.Unlock()
@@ -206,7 +215,7 @@ func Pop() *model.Samples {
 	return nil
 }
 
-// Threaded writer
+//Client - struct to hold critical values
 type Client struct {
 	logger log.Logger
 	DB     *pgx.Conn
@@ -275,18 +284,18 @@ func (c *PGWriter) setupPgPrometheus() error {
 
 	for rows.Next() {
 		var (
-			metric_name_label string
-			metric_id         int64
+			metricNameLabel string
+			metricID         int64
 		)
-		err := rows.Scan(&metric_name_label, &metric_id)
+		err := rows.Scan(&metricNameLabel, &metricID)
 
 		if err != nil {
 			rows.Close()
 			level.Info(c.logger).Log("msg", "Error scaning metric_labels")
 			return err
 		}
-		//level.Info(c.logger).Log("msg",fmt.Sprintf("YS>\t>%s<\t>%s<",metric_name_label, metric_id ) )
-		vMetricIDMap[metric_name_label] = metric_id
+		//level.Info(c.logger).Log("msg",fmt.Sprintf("YS>\t>%s<\t>%s<",metricNameLabel, metricID ) )
+		vMetricIDMap[metricNameLabel] = metricID
 	}
 	level.Info(c.logger).Log("msg", fmt.Sprintf("%d Rows Loaded in map: ", len(vMetricIDMap)))
 	rows.Close()
@@ -364,6 +373,7 @@ func createOrderedKeys(m *map[string]string) []string {
 	return keys
 }
 
+//Close - Close database connections
 func (c *Client) Close() {
 	if c.DB != nil {
 		if err1 := c.DB.Close(context.Background()); err1 != nil {
