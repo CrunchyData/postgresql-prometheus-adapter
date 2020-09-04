@@ -262,11 +262,6 @@ func write(logger log.Logger, writer writer) http.Handler {
 			level.Warn(logger).Log("msg", "Error sending samples to remote storage", "err", err, "storage", writer.Name(), "num_samples", len(samples))
 		}
 
-		//counter, err := sentSamples.GetMetricWithLabelValues(writer.Name())
-		//if err != nil {
-		//	level.Warn(logger).Log("msg", "Couldn't get a counter", "labelValue", writer.Name(), "err", err)
-		//}
-
 	})
 }
 

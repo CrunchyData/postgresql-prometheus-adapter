@@ -33,16 +33,12 @@ type Config struct {
 
 var promSamples = list.New()
 
-/*
-
-QueueMutex is used thread safe operations on promSamples list object.
-
-*/
+// QueueMutex is used thread safe operations on promSamples list object.
 var QueueMutex sync.Mutex
 var vMetricIDMapMutex sync.Mutex
 var vMetricIDMap tMetricIDMap
 
-//PGWriter - Threaded writer
+// PGWriter - Threaded writer
 type PGWriter struct {
 	DB          *pgx.Conn
 	id          int
@@ -56,7 +52,7 @@ type PGWriter struct {
 	logger        log.Logger
 }
 
-//PGParser - Threaded parser
+// PGParser - Threaded parser
 type PGParser struct {
 	id          int
 	KeepRunning bool
@@ -103,8 +99,6 @@ func (p *PGParser) RunPGParser(tid int, partitionScheme string, c *PGWriter) {
 				vMetricIDMapMutex.Unlock()
 				p.valueRows = append(p.valueRows, []interface{}{int64(id), toTimestamp(milliseconds), float64(sample.Value)})
 			}
-			// samples = nil
-			// level.Info(c.logger).Log(fmt.Sprintf("bgparser%d",p.id), fmt.Sprintf("Parsed %d rows", len(p.valueRows) ) )
 			vMetricIDMapMutex.Lock()
 			c.valueRows = append(c.valueRows, p.valueRows...)
 			p.valueRows = nil
@@ -161,7 +155,7 @@ func (c *PGWriter) RunPGWriter(l log.Logger, tid int, commitSecs int, commitRows
 	c.Running = false
 }
 
-//PGWriterShutdown - Set shutdown flag for graceful shutdown
+// PGWriterShutdown - Set shutdown flag for graceful shutdown
 func (c *PGWriter) PGWriterShutdown() {
 	c.KeepRunning = false
 }
@@ -197,14 +191,14 @@ func (c *PGWriter) PGWriterSave() {
 	level.Info(c.logger).Log("metric", fmt.Sprintf("BGWriter%d: Processed samples count,%d, duration,%v", c.id, rowCount+lblCount, duration))
 }
 
-//Push - Push element at then end of list
+// Push - Push element at then end of list
 func Push(samples *model.Samples) {
 	QueueMutex.Lock()
 	promSamples.PushBack(samples)
 	QueueMutex.Unlock()
 }
 
-//Pop - Pop first element from list
+// Pop - Pop first element from list
 func Pop() *model.Samples {
 	QueueMutex.Lock()
 	defer QueueMutex.Unlock()
@@ -215,7 +209,7 @@ func Pop() *model.Samples {
 	return nil
 }
 
-//Client - struct to hold critical values
+// Client - struct to hold critical values
 type Client struct {
 	logger log.Logger
 	DB     *pgx.Conn
@@ -294,7 +288,6 @@ func (c *PGWriter) setupPgPrometheus() error {
 			level.Info(c.logger).Log("msg", "Error scaning metric_labels")
 			return err
 		}
-		//level.Info(c.logger).Log("msg",fmt.Sprintf("YS>\t>%s<\t>%s<",metricNameLabel, metricID ) )
 		vMetricIDMap[metricNameLabel] = metricID
 	}
 	level.Info(c.logger).Log("msg", fmt.Sprintf("%d Rows Loaded in map: ", len(vMetricIDMap)))
@@ -373,7 +366,7 @@ func createOrderedKeys(m *map[string]string) []string {
 	return keys
 }
 
-//Close - Close database connections
+// Close - Close database connections
 func (c *Client) Close() {
 	if c.DB != nil {
 		if err1 := c.DB.Close(context.Background()); err1 != nil {
