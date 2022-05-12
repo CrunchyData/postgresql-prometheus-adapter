@@ -14,6 +14,8 @@ Additional information regarding the adapter and getting started is provided bel
 
 PostgreSQL Prometheus Adapter supports:
 
+* PostgreSQL 14
+* PostgreSQL 13
 * PostgreSQL 12
 * PostgreSQL 11
 
