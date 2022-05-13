@@ -54,6 +54,8 @@ import (
 	//"flag"
 )
 
+var Version = "development"
+
 type config struct {
 	remoteTimeout      time.Duration
 	listenAddr         string
@@ -186,7 +188,7 @@ func main() {
 }
 
 func parseFlags() *config {
-	a := kingpin.New(filepath.Base(os.Args[0]), "Remote storage adapter [ PostgreSQL ]")
+	a := kingpin.New(filepath.Base(os.Args[0]), fmt.Sprintf("Remote storage adapter [ PostgreSQL ],  Version: %s", Version))
 	a.HelpFlag.Short('h')
 
 	cfg := &config{

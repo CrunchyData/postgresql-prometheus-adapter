@@ -1,4 +1,4 @@
-VERSION=1.0-RC1
+VERSION=1.1
 ORGANIZATION=crunchydata
 
 SOURCES:=$(shell find . -name '*.go'  | grep -v './vendor')
@@ -12,7 +12,7 @@ all: $(TARGET)
 build: $(TARGET)
 
 $(TARGET): main.go $(SOURCES)
-	go build -o $(TARGET)
+	go build -ldflags="-X 'main.Version=${VERSION}'" -o $(TARGET)
 
 container: $(TARGET) Dockerfile
 	@#podman rmi $(ORGANIZATION)/$(TARGET):latest $(ORGANIZATION)/$(TARGET):$(VERSION)
