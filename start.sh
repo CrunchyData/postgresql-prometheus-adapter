@@ -12,12 +12,12 @@ function shutdown() {
   pkill -SIGINT postgresql-prometheus-adapter
 }
 
-adapter_send_timeout=${adapter_send_timeout:-'30s'}
-web_listen_address="${web_listen_address:-':9201'}"
-web_telemetry_path="${web_telemetry_path:-'/metrics'}"
-log_level="${log_level:-'info'}"
-log_format="${log_format:-'logfmt'}"
-pg_partition="${pg_partition:-'hourly'}"
+adapter_send_timeout=${adapter_send_timeout:-30s}
+web_listen_address="${web_listen_address:-:9201}"
+web_telemetry_path="${web_telemetry_path:-/metrics}"
+log_level="${log_level:-info}"
+log_format="${log_format:-logfmt}"
+pg_partition="${pg_partition:-hourly}"
 pg_commit_secs=${pg_commit_secs:-30}
 pg_commit_rows=${pg_commit_rows:-20000}
 pg_threads="${pg_threads:-1}"
@@ -46,4 +46,3 @@ echo /postgresql-prometheus-adapter \
   --pg-commit-rows=${pg_commit_rows} \
   --pg-threads=${pg_threads} \
   --parser-threads=${parser_threads}
-
