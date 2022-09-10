@@ -2,7 +2,7 @@
 
 if [[ "${DATABASE_URL}" == "" ]]; then
   echo 'Missing DATABASE_URL'
-  echo 'example -e DATABASE_URL="user=<db user> password=<db user password> host=<db host> port=<db port> database=<db name>"'
+  echo 'example -e DATABASE_URL="user=<db user> password=<db user password> host=<db host> port=<db port> database=<db name> pool_min_conns=[minimum pool connection] pool_max_conns=[maximum pool connection]"'
   exit 1
 fi
 
@@ -46,4 +46,3 @@ echo /postgresql-prometheus-adapter \
   --pg-commit-rows=${pg_commit_rows} \
   --pg-threads=${pg_threads} \
   --parser-threads=${parser_threads}
-

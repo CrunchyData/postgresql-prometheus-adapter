@@ -14,10 +14,10 @@ Additional information regarding the adapter and getting started is provided bel
 
 PostgreSQL Prometheus Adapter supports:
 
-* PostgreSQL 14
-* PostgreSQL 13
-* PostgreSQL 12
-* PostgreSQL 11
+- PostgreSQL 14
+- PostgreSQL 13
+- PostgreSQL 12
+- PostgreSQL 11
 
 ## Building
 
@@ -54,7 +54,7 @@ export DATABASE_URL=...
 ```shell
 Default: None
 Description: Database connection parameters
-Ex: “user=<> password=<> host=<> port=<> database=<>”
+Ex: “user=<> password=<> host=<> port=<> database=<> pool_min_conns=[] pool_max_conns=[]”
 ```
 
 #### Adapter parameters
@@ -80,6 +80,7 @@ Flags:
       --pg-threads=1                   Writer DB threads to run 1-10
       --parser-threads=5               parser threads to run per DB writer 1-10
 ```
+
 :point_right: Note: pg_commit_secs and pg_commit_rows controls when data rows will be flushed to database. First one to reach threshold will trigger the flush.
 
 ### Container
@@ -93,7 +94,7 @@ podman run --rm \
   -e DATABASE_URL="user=testuser password=test123 host=192.168.12.36 port=5432 database=testdb" \
   --detach \
   crunchydata/postgresql-prometheus-adapterl:latest
-  ```
+```
 
 #### Stop container
 
@@ -117,6 +118,7 @@ pg_commit_rows=20000           Write data to database every N Rows
 pg_threads=1                   Writer DB threads to run 1-10
 parser_threads=5               parser threads to run per DB writer 1-10
 ```
+
 :point_right: Note: pg_commit_secs and pg_commit_rows controls when data rows will be flushed to database. First one to reach threshold will trigger the flush.
 
 ## Prometheus Configuration
@@ -125,10 +127,10 @@ Add the following to your prometheus.yml:
 
 ```yaml
 remote_write:
-    - url: "http://<ip address>:9201/write"
+  - url: "http://<ip address>:9201/write"
 remote_read:
-    - url: "http://<ip address>:9201/read"
- ```
+  - url: "http://<ip address>:9201/read"
+```
 
 ## Maintainers
 
@@ -136,7 +138,7 @@ The PostgreSQL Prometheus Adapter is maintained by the team at [Crunchy Data](ht
 
 ## Contributing to the Project
 
-Want to contribute to the PostgreSQL Prometheus Adapter? Great! Please use GitHub to submit an issue for the PostgreSQL Prometheus Adapter project.  If you would like to work the issue, please add that information in the issue so that we can confirm we are not already working no need to duplicate efforts.
+Want to contribute to the PostgreSQL Prometheus Adapter? Great! Please use GitHub to submit an issue for the PostgreSQL Prometheus Adapter project. If you would like to work the issue, please add that information in the issue so that we can confirm we are not already working no need to duplicate efforts.
 
 ## License
 
