@@ -16,6 +16,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 )
@@ -40,7 +41,7 @@ var vMetricIDMap tMetricIDMap
 
 // PGWriter - Threaded writer
 type PGWriter struct {
-	DB          *pgx.Conn
+	DB          *pgxpool.Pool
 	id          int
 	KeepRunning bool
 	Running     bool
@@ -123,11 +124,13 @@ func (c *PGWriter) RunPGWriter(l log.Logger, tid int, commitSecs int, commitRows
 	period := commitSecs * 1000
 	var err error
 	var parser [20]PGParser
-	c.DB, err = pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	c.DB, err = pgxpool.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		level.Error(c.logger).Log("err", err)
 		os.Exit(1)
 	}
+	defer c.DB.Close()
+
 	if c.id == 0 {
 		c.setupPgPrometheus()
 		_ = c.setupPgPartitions(partitionScheme, time.Now())
@@ -165,6 +168,7 @@ func (c *PGWriter) PGWriterSave() {
 	var copyCount, lblCount, rowCount int64
 	var err error
 	begin := time.Now()
+	vMetricIDMapMutex.Lock()
 	lblCount = int64(len(c.labelRows))
 	c.PGWriterMutex.Lock()
 	if lblCount > 0 {
@@ -181,6 +185,7 @@ func (c *PGWriter) PGWriterSave() {
 	rowCount = int64(len(c.valueRows))
 	c.valueRows = nil
 	c.PGWriterMutex.Unlock()
+	vMetricIDMapMutex.Unlock()
 	if err != nil {
 		level.Error(c.logger).Log("msg", "COPY failed for metric_values", "err", err)
 	}
@@ -212,7 +217,7 @@ func Pop() *model.Samples {
 // Client - struct to hold critical values
 type Client struct {
 	logger log.Logger
-	DB     *pgx.Conn
+	DB     *pgxpool.Pool
 	cfg    *Config
 }
 
@@ -222,7 +227,7 @@ func NewClient(logger log.Logger, cfg *Config) *Client {
 		logger = log.NewNopLogger()
 	}
 
-	conn1, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	conn1, err := pgxpool.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error: Unable to connect to database using DATABASE_URL=", os.Getenv("DATABASE_URL"))
 		os.Exit(1)
@@ -369,9 +374,7 @@ func createOrderedKeys(m *map[string]string) []string {
 // Close - Close database connections
 func (c *Client) Close() {
 	if c.DB != nil {
-		if err1 := c.DB.Close(context.Background()); err1 != nil {
-			level.Error(c.logger).Log("msg", err1.Error())
-		}
+		c.DB.Close()
 	}
 }
 
