@@ -165,6 +165,7 @@ func (c *PGWriter) PGWriterSave() {
 	var copyCount, lblCount, rowCount int64
 	var err error
 	begin := time.Now()
+	vMetricIDMapMutex.Lock()
 	lblCount = int64(len(c.labelRows))
 	c.PGWriterMutex.Lock()
 	if lblCount > 0 {
@@ -181,6 +182,7 @@ func (c *PGWriter) PGWriterSave() {
 	rowCount = int64(len(c.valueRows))
 	c.valueRows = nil
 	c.PGWriterMutex.Unlock()
+	vMetricIDMapMutex.Unlock()
 	if err != nil {
 		level.Error(c.logger).Log("msg", "COPY failed for metric_values", "err", err)
 	}
