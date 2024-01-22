@@ -1,8 +1,12 @@
-FROM centos:7
+FROM golang:alpine
 
-MAINTAINER Yogesh Sharma <Yogesh.Sharma@CrunchyData.com>
+WORKDIR /source
+COPY . /source
+RUN apk --update-cache add --virtual \
+  build-dependencies \
+  build-base \
+  && go mod download \
+  && make all
 
-COPY postgresql-prometheus-adapter start.sh /
-
-ENTRYPOINT ["/start.sh"]
+ENTRYPOINT ["/bin/sh", "/source/start.sh"]
 

@@ -12,12 +12,12 @@ all: $(TARGET)
 build: $(TARGET)
 
 $(TARGET): main.go $(SOURCES)
-	go build -ldflags="-X 'main.Version=${VERSION}'" -o $(TARGET)
+	go build -ldflags="-X 'main.Version=${VERSION}' -extldflags '-static'" -o $(TARGET)
 
 container: $(TARGET) Dockerfile
 	@#podman rmi $(ORGANIZATION)/$(TARGET):latest $(ORGANIZATION)/$(TARGET):$(VERSION)
-	podman build -t $(ORGANIZATION)/$(TARGET):latest .
-	podman tag $(ORGANIZATION)/$(TARGET):latest $(ORGANIZATION)/$(TARGET):$(VERSION)
+	docker build -t $(ORGANIZATION)/$(TARGET):latest .
+	# podman tag $(ORGANIZATION)/$(TARGET):latest $(ORGANIZATION)/$(TARGET):$(VERSION)
 
 container-save: container
 	rm -f $(TARGET)-$(VERSION).tar
